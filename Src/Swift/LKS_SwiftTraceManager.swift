@@ -19,9 +19,11 @@ public class LKS_SwiftTraceManager: NSObject {
         var inClass: AnyClass? = type(of: hostObject)
         while let m = mirror, let childClass = inClass {
             m.children.forEach { child in
-                if let child = child as? (label: String?, value: NSObject) {
+                // 若child的基类是NSProxy，转换会产生指令异常的崩溃，先转换成AnyObject, 再根据classForCoder来判断
+                if let child = child as? (label: String?, value: AnyObject),
+                   child.value.classForCoder != nil,
+                   let value = child.value as? NSObject {
                     let label: String? = child.label?.replacingOccurrences(of: "$__lazy_storage_$_", with: "")
-                    let value = child.value
                     
                     guard (value is UIView) || (value is CALayer) || (value is UIViewController) || (value is UIGestureRecognizer) else {
                         return
