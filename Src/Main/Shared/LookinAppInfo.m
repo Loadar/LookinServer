@@ -42,7 +42,8 @@ static NSString * const CodingKey_DeviceType = @"8";
     if (self = [super init]) {
         
         self.serverVersion = [aDecoder decodeIntForKey:@"serverVersion"];
-
+        self.serverReadableVersion = [aDecoder decodeObjectForKey:@"serverReadableVersion"];
+        self.swiftEnabledInLookinServer = [aDecoder decodeIntForKey:@"swiftEnabledInLookinServer"];
         NSData *screenshotData = [aDecoder decodeObjectForKey:CodingKey_Screenshot];
         self.screenshot = [[LookinImage alloc] initWithData:screenshotData];
         
@@ -66,6 +67,8 @@ static NSString * const CodingKey_DeviceType = @"8";
 
 - (void)encodeWithCoder:(NSCoder *)aCoder {
     [aCoder encodeInt:self.serverVersion forKey:@"serverVersion"];
+    [aCoder encodeObject:self.serverReadableVersion forKey:@"serverReadableVersion"];
+    [aCoder encodeInt:self.swiftEnabledInLookinServer forKey:@"swiftEnabledInLookinServer"];
     
 #if TARGET_OS_IPHONE
     NSData *screenshotData = UIImagePNGRepresentation(self.screenshot);
@@ -137,6 +140,12 @@ static NSString * const CodingKey_DeviceType = @"8";
     }
     
     LookinAppInfo *info = [[LookinAppInfo alloc] init];
+    info.serverReadableVersion = LOOKIN_SERVER_READABLE_VERSION;
+#ifdef LOOKIN_SERVER_SWIFT_ENABLED
+    info.swiftEnabledInLookinServer = 1;
+#else
+    info.swiftEnabledInLookinServer = -1;
+#endif
     info.appInfoIdentifier = selfIdentifier;
     info.appName = [self appName];
     info.deviceDescription = [UIDevice currentDevice].name;
@@ -194,7 +203,14 @@ static NSString * const CodingKey_DeviceType = @"8";
     if (!window) {
         return nil;
     }
-    UIGraphicsBeginImageContextWithOptions(window.bounds.size, YES, 0.4);
+    CGSize size = window.bounds.size;
+    if (size.width <= 0 || size.height <= 0) {
+        // *** Terminating app due to uncaught exception 'NSInternalInconsistencyException', reason: 'UIGraphicsBeginImageContext() failed to allocate CGBitampContext: size={0, 0}, scale=3.000000, bitmapInfo=0x2002. Use UIGraphicsImageRenderer to avoid this assert.'
+
+        // https://github.com/hughkli/Lookin/issues/21
+        return nil;
+    }
+    UIGraphicsBeginImageContextWithOptions(size, YES, 0.4);
     [window drawViewHierarchyInRect:window.bounds afterScreenUpdates:YES];
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
